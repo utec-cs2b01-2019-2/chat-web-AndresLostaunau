@@ -14,6 +14,15 @@ app = Flask(__name__)
 def cuantaslestras(nombre):
     return str(len(nombre))
 
+@app.route("/suma/<numero>")
+def suma(numero):
+    if "suma" not in session:
+        session ["suma"] = 0
+    suma = session ["suma"]
+    suma = suma + int (numero)
+    session ["suma"] = suma
+    return str(suma)
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -49,10 +58,12 @@ def get_user(id):
 
 @app.route('/users', methods = ['GET'])
 def get_users():
-    session = db.getSession(engine)
-    dbResponse = session.query(entities.User)
-    data = dbResponse[:]
-    return Response(json.dumps(data, cls=connector.AlchemyEncoder), mimetype='application/json')
+    db_session = db.getSession(engine)
+    users = db_session.query(entities.User)
+    response = ""
+    for user in users:
+        response += user.username + " - "
+    return response
 
 @app.route('/users', methods = ['PUT'])
 def update_user():
@@ -180,28 +191,22 @@ def send_message():
     session.commit()
     return 'Message sent'
 
-@app.route('/authenticate', methods = ['POST'])
+@app.route("/authenticate", methods = ["POST"])
 def authenticate():
-    #Get data form request
-    time.sleep(3)
-    message = json.loads(request.data)
-    username = message['username']
-    password = message['password']
-
-    # Look in database
+    username= request.form["username"]
+    password =request.form["password"]
     db_session = db.getSession(engine)
+    user = db_session.query(entities.User).filter(
+        entities.User.username == username
+    ).filter(
+        entities.User.password ==password
+    ).first()
 
-    try:
-        user = db_session.query(entities.User
-            ).filter(entities.User.username==username
-            ).filter(entities.User.password==password
-            ).one()
-        session['logged_user'] = user.id
-        message = {'message':'Authorized'}
-        return Response(message, status=200,mimetype='application/json')
-    except Exception:
-        message = {'message':'Unauthorized'}
-        return Response(message, status=401,mimetype='application/json')
+    if user != None:
+        session ["usuario"] = username
+        return "Welcome " + username
+    else:
+        return "Sorry " +username+" you are not a valid user"
 
 @app.route('/current', methods = ['GET'])
 def current_user():
