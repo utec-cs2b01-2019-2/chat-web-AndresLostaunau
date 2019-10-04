@@ -33,7 +33,7 @@ def static_content(content):
 
 @app.route('/users', methods = ['POST'])
 def create_user():
-    c =  json.loads(request.form['values'])
+    c = json.loads(request.form['values'])
     user = entities.User(
         username=c['username'],
         name=c['name'],
@@ -51,9 +51,9 @@ def get_user(id):
     users = db_session.query(entities.User).filter(entities.User.id == id)
     for user in users:
         js = json.dumps(user, cls=connector.AlchemyEncoder)
-        return  Response(js, status=200, mimetype='application/json')
+        return Response(js, status=200, mimetype='application/json')
 
-    message = { 'status': 404, 'message': 'Not Found'}
+    message = {'status': 404, 'message': 'Not Found'}
     return Response(message, status=404, mimetype='application/json')
 
 @app.route('/users', methods = ['GET'])
@@ -65,21 +65,19 @@ def get_users():
         response += user.username + " - "
     return response
 
-@app.route('/users', methods = ['PUT'])
+@app.route('/users/<id>', methods = ['PUT'])
 def update_user():
     session = db.getSession(engine)
-    id = request.form['key']
     user = session.query(entities.User).filter(entities.User.id == id).first()
-    c = json.loads(request.form['values'])
+    c = json.loads(request.data)
     for key in c.keys():
         setattr(user, key, c[key])
     session.add(user)
     session.commit()
     return 'Updated User'
 
-@app.route('/users', methods = ['DELETE'])
-def delete_user():
-    id = request.form['key']
+@app.route('/users/<id>', methods = ['DELETE'])
+def delete_user(id):
     session = db.getSession(engine)
     user = session.query(entities.User).filter(entities.User.id == id).one()
     session.delete(user)
@@ -99,7 +97,7 @@ def create_message():
     c = json.loads(request.form['values'])
     message = entities.Message(
         content=c['content'],
-        sent_on=datetime.datetime(2000,2,2),
+        sent_on=datetime.datetime(2000, 2, 2),
         user_from_id=c['user_from_id'],
         user_to_id=c['user_to_id']
     )
@@ -193,17 +191,17 @@ def send_message():
 
 @app.route("/authenticate", methods = ["POST"])
 def authenticate():
-    username= request.form["username"]
-    password =request.form["password"]
+    username = request.form["username"]
+    password = request.form["password"]
     db_session = db.getSession(engine)
     user = db_session.query(entities.User).filter(
         entities.User.username == username
     ).filter(
-        entities.User.password ==password
+        entities.User.password == password
     ).first()
 
     if user != None:
-        session ["usuario"] = username
+        session["usuario"] = username
         return "Welcome " + username
     else:
         return "Sorry " +username+" you are not a valid user"
@@ -218,6 +216,33 @@ def current_user():
 def logout():
     session.clear()
     return render_template('login.html')
+
+@app.route('/groups/<id>', methods = ['GET'])
+def read_group(id):
+    session_db = db.getSession(engine)
+    group = session_db.query(entities.Group).filter(
+        entities.Group.id == id
+    ).first()
+    data = json.dumps(group, cls=connector.AlchemyEncoder)
+    return Response(data, status=200, mimetype=('application/json'))
+
+@app.route('/groups', methods = ['GET'])
+def get_all_groups():
+    session_db = db.getSession(engine)
+    dbResponse = session_db.query(entities.Group)
+    data = dbResponse[:]
+    return Response(json.dumps(data, cls=connector.AlchemyEncoder), mimetype='application/json')
+
+@app.route('/groups/<id>', methods = ['PUT'])
+def update_group(id):
+    session_db = db.getSession(engine)
+    group = session_db.query(entities.Group).filter(entities.Group.id == id).first
+    c = json.loads(request.data)
+    for key in c.keys():
+        setattr(group, key, c[key])
+    session.add(group)
+    session.commit()
+    return 'Updated GROUP'
 
 if __name__ == '__main__':
     app.secret_key = ".."
